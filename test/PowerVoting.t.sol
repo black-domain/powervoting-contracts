@@ -14,7 +14,7 @@
 
 pragma solidity ^0.8.19;
 
-import "../PowerVoting-filecoin.sol";
+import "../PowerVoting-bob.sol";
 
 contract PowerVotingTest {
 
@@ -43,12 +43,6 @@ contract PowerVotingTest {
         (string memory newVoteInfo, address voter) = powerVotingAddress.proposalToVote(1, 1);
         require(keccak256(abi.encodePacked(voteInfo)) == keccak256(abi.encodePacked(newVoteInfo)), "vote failed, vote info error");
         require(voter == address(this), "vote failed, voter error");
-    }
-
-    function testUcanDelegate(address oracle) external {
-        powerVotingAddress.updateOracleContract(oracle);
-        string memory ucanCid = "bafkreiaitdxatu7ylo47uybagqkvhuutqdplbt2d4oquhilikxhrk42gx4";
-        powerVotingAddress.ucanDelegate(ucanCid);
     }
 
 }

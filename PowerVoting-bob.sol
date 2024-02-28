@@ -16,7 +16,7 @@ pragma solidity ^0.8.19;
 
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IPowerVoting } from "./interfaces/IPowerVoting-filecoin.sol";
+import { IPowerVoting } from "./interfaces/IPowerVoting-bob.sol";
 import { Proposal, VoteInfo } from "./types.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -28,47 +28,18 @@ contract PowerVoting is IPowerVoting, Ownable2StepUpgradeable, UUPSUpgradeable {
     // proposal id
     Counters.Counter public proposalId;
 
-    // Power Oracle contract address
-    address public oracleContract;
-
-    // add task function selector
-    bytes4 public immutable ADD_TASK_SELECTOR = bytes4(keccak256('addTask(string)'));
-
-    // add f4 task function selector
-    bytes4 public immutable ADD_F4_TASK_SELECTOR = bytes4(keccak256('addF4Task(address)'));
-
-    // add miner id function selector
-    bytes4 public immutable ADD_MINER_IDS_SELECTOR = bytes4(keccak256('addMinerIds(uint64[],address)'));
-
     // proposal mapping, key: proposal id, value: Proposal
     mapping(uint256 => Proposal) public idToProposal;
 
     // proposal id to vote, out key: proposal id, inner key: vote id, value: vote info
     mapping(uint256 => mapping(uint256 => VoteInfo)) public proposalToVote;
 
-    modifier nonZeroAddress(address addr){
-        if(addr == address(0)){
-            revert ZeroAddressError("Zero address error.");
-        }
-        _;
-    }
-
     // override from UUPSUpgradeable
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function initialize(address oracleAddress) public initializer nonZeroAddress(oracleAddress) {
-        oracleContract = oracleAddress;
+    function initialize() public initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
-    }
-
-    /**
-    * update oracle contract address
-    *
-    * @param oracleAddress: new oracle contract address
-    */
-    function updateOracleContract(address oracleAddress) external onlyOwner nonZeroAddress(oracleAddress) {
-        oracleContract = oracleAddress;
     }
 
     /**
@@ -81,7 +52,7 @@ contract PowerVoting is IPowerVoting, Ownable2StepUpgradeable, UUPSUpgradeable {
     function createProposal(string calldata proposalCid, uint248 expTime, uint256 proposalType) override external {
         // increment proposal id
         proposalId.increment();
-        uint256 id = proposalId.current();
+        uint256 id  = proposalId.current();
         // create proposal
         Proposal storage proposal = idToProposal[id];
         proposal.cid = proposalCid;
@@ -91,28 +62,17 @@ contract PowerVoting is IPowerVoting, Ownable2StepUpgradeable, UUPSUpgradeable {
         emit ProposalCreate(id, proposal);
     }
 
-
     /**
      * vote
      *
      * @param id: proposal id
      * @param info: vote info, IPFS cid
      */
-    function vote(uint256 id, string calldata info, uint64[] memory minerIds) override external{
+    function vote(uint256 id, string calldata info) override external{
         Proposal storage proposal = idToProposal[id];
         // if proposal is expired, won't be allowed to vote
         if(proposal.expTime <= block.timestamp){
             revert TimeError("Proposal expiration time reached.");
-        }
-        if (minerIds.length > 0) {
-            (bool addMinerSuccess, ) = oracleContract.call(abi.encodeWithSelector(ADD_MINER_IDS_SELECTOR, minerIds, msg.sender));
-            if(!addMinerSuccess){
-                revert CallError("Call oracle contract addMinerIds function failed.");
-            }
-        }
-        (bool addF4TaskSuccess, ) = oracleContract.call(abi.encodeWithSelector(ADD_F4_TASK_SELECTOR, msg.sender));
-        if(!addF4TaskSuccess){
-            revert CallError("Call oracle contract addF4Task function failed.");
         }
         // increment votesCount
         uint256 vid = ++proposal.votesCount;
@@ -121,19 +81,6 @@ contract PowerVoting is IPowerVoting, Ownable2StepUpgradeable, UUPSUpgradeable {
         voteInfo.voteInfo = info;
         voteInfo.voter = msg.sender;
         emit Vote(id, msg.sender, info);
-    }
-
-    /**
-     * ucanDelegate
-     *
-     * @param ucanCid: ucan cid
-     */
-    function ucanDelegate(string calldata ucanCid) override external{
-        // call kyc oracle to add task
-        (bool success, ) = oracleContract.call(abi.encodeWithSelector(ADD_TASK_SELECTOR, ucanCid));
-        if(!success){
-            revert CallError("Call oracle contract addTask function failed.");
-        }
     }
 
 }

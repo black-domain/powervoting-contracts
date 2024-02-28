@@ -21,7 +21,5 @@ import {IPowerVotingError} from "./IPowerVotingError.sol";
 
 interface IPowerVoting is IPowerVotingEvent, IPowerVotingError {
     function createProposal(string calldata proposalCid, uint248 expTime, uint256 proposalType) external;
-    function vote(uint256 id, string calldata info, uint64[] memory minerIds) external;
-    function ucanDelegate(string calldata ucanCid) external;
-    function updateOracleContract(address oracleAddress) external;
+    function vote(uint256 id, string calldata info) external;
 }
